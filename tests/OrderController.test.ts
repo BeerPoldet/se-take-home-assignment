@@ -148,4 +148,74 @@ describe('OrderController', () => {
     expect(vip2.completedAt!.getTime()).toBeLessThan(normal1.completedAt!.getTime());
     expect(vip3.completedAt!.getTime()).toBeLessThan(normal1.completedAt!.getTime());
   });
+
+  // Edge Case Tests
+  describe('Edge Cases', () => {
+    test('order should stay pending when no bots exist', () => {
+      controller.createOrder(OrderType.NORMAL);
+      const status = controller.getStatus();
+      expect(status.pendingOrders.length).toBe(1);
+      expect(status.processingOrders.length).toBe(0);
+    });
+
+    test('should handle removing bot when no bots exist', () => {
+      expect(() => controller.removeBot()).not.toThrow();
+    });
+
+    test('multiple bots should process orders concurrently', () => {
+      controller.createOrder(OrderType.NORMAL);
+      controller.createOrder(OrderType.NORMAL);
+      controller.createOrder(OrderType.NORMAL);
+
+      controller.addBot();
+      controller.addBot();
+      controller.addBot();
+
+      const status = controller.getStatus();
+      expect(status.processingBots.length).toBe(3);
+      expect(status.processingOrders.length).toBe(3);
+    });
+
+    test('bots should remain idle when more bots than orders', () => {
+      controller.createOrder(OrderType.NORMAL);
+      controller.addBot();
+      controller.addBot();
+      controller.addBot();
+
+      const status = controller.getStatus();
+      expect(status.processingBots.length).toBe(1);
+      expect(status.idleBots.length).toBe(2);
+    });
+
+    test('should remove idle bot without affecting orders', () => {
+      controller.addBot(); // Idle bot
+      controller.removeBot();
+
+      const status = controller.getStatus();
+      expect(status.idleBots.length).toBe(0);
+    });
+
+    test('bot should automatically pick next order after completing', () => {
+      controller.createOrder(OrderType.NORMAL); // #1
+      controller.createOrder(OrderType.NORMAL); // #2
+      controller.addBot();
+
+      jest.advanceTimersByTime(10000); // Complete order #1
+
+      const status = controller.getStatus();
+      expect(status.completedOrders.length).toBe(1);
+      expect(status.processingOrders.length).toBe(1); // Auto-picked #2
+    });
+
+    test('order should transition PENDING -> PROCESSING -> COMPLETE', () => {
+      const order = controller.createOrder(OrderType.NORMAL);
+      expect(order.state).toBe(OrderState.PENDING);
+
+      controller.addBot();
+      expect(order.state).toBe(OrderState.PROCESSING);
+
+      jest.advanceTimersByTime(10000);
+      expect(order.state).toBe(OrderState.COMPLETE);
+    });
+  });
 });
