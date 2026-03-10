@@ -5,10 +5,21 @@
 
 echo "Running unit tests..."
 
-# For Go projects:
-# go test ./... -v
+# Change to project root directory
+cd "$(dirname "$0")/.."
 
-# For Node.js projects:
-# npm test
+# Install dependencies if needed
+pnpm install
 
-echo "Unit tests completed"
+# Run tests
+pnpm test
+
+# Type check
+echo "Running type check..."
+pnpm run type-check
+
+# Lint
+echo "Running linter..."
+pnpm run lint
+
+echo "All tests completed successfully"
